@@ -3,6 +3,16 @@
 #include <string.h>
 #include "lists.h"
 
+void free_dp(void *free_ptr) {
+    free(free_ptr);
+    free_ptr = NULL;
+}
+
+void print_exit(char *message, int exit_code) {
+    perror(message);
+    exit(exit_code);
+}
+
 /* Add a group with name group_name to the group_list referred to by
  * group_list_ptr. The groups are ordered by the time that the group was
  * added to the list with new groups added to the end of the list.
@@ -23,8 +33,7 @@ int add_group(Group **group_list_ptr, const char *group_name) {
      *     1) If it didn't, print out error message and exit with code 256
      */
     if (new_group == NULL) {
-        perror("ERROR: Malloc failed\n");
-        exit(256);
+        print_exit("ERROR: Malloc failed", 256);
 
     /*     2) If it did, set the new group_name, set users, xcts and next pointers
      *        to NULL
@@ -37,11 +46,11 @@ int add_group(Group **group_list_ptr, const char *group_name) {
          * successfully it will print out an error message to standard output.
          */
         if (new_group->name == NULL) {
-            perror("ERROR: Malloc failed\n");
-            exit(256);
+            print_exit("ERROR: Malloc failed", 256);
         }
         strncpy(new_group->name, group_name, size_to_malloc);
         new_group->name[size_to_malloc] = '\0';
+
         /* All other pointers are set NULL until the embedded linked list are 
          * declared and initialized. 
          */
@@ -62,42 +71,23 @@ int add_group(Group **group_list_ptr, const char *group_name) {
      */
     } else {
         Group *curr = *group_list_ptr;
-
-        /* Checks if the first group is the same name as the group to be added,
-         * if it is, -1 is returned.
-         */
-        if (strcmp(curr->name, group_name) == 0) {
-            free(new_group->name);
-
-            /* Memory is freed and all variables points to NULL to avoid dangling
-             * pointers
-             */
-            new_group->name = NULL;
-            free(new_group);
-            new_group = NULL;
-            return -1;
-        }
-        while (curr->next != NULL) {
+        while (curr != NULL) {
 
             /* Compares the current group name with the group_name (user wants
              * to add). 
              *     1) If a group with the same name exists, -1 is returned
              */
             if (strcmp(curr->name, group_name) == 0) {
-                free(new_group->name);
-                new_group->name = NULL;
-                free(new_group);
-                new_group = NULL;
+                free_dp(new_group->name);
+                free_dp(new_group);
                 return -1;
+            } else if (curr->next == NULL) {
+                curr->next = new_group;
+                return 0;
             } else {
                 curr = curr->next;
             }
         }
-
-        /*    2) If no group with the same name exists, it makes the group and 0 is
-         *       returned
-         */
-        curr->next = new_group;
         return 0;
     }
 }
@@ -164,8 +154,7 @@ int add_user(Group *group, const char *user_name) {
      * out to standard output and program will exit with 256 exit code
      */
     if (new_user == NULL) {
-        perror("ERROR: Malloc failed\n");
-        exit(256);
+        print_exit("ERROR: Malloc failed", 256);
 
     /* If malloc has been completed successfully, the user name is set to user_name
      * and set initial balance to 0
@@ -179,8 +168,7 @@ int add_user(Group *group, const char *user_name) {
          * code of 256.
          */
         if (new_user->name == NULL) {
-            perror("ERROR: Malloc failed\n");
-            exit(256);
+            print_exit("ERROR: Malloc failed", 256);
         }
 
         /* Copies the user_name given to the user name got the newly created
@@ -190,7 +178,7 @@ int add_user(Group *group, const char *user_name) {
         new_user->name[size_to_malloc] = '\0';
 
         /* Sets all other values to either 0.0 if it is double, or NULL if it is
-         * a ppinter to another linked list. 
+         * a pointer to another linked list.
          */
         new_user->balance = 0.0;
         new_user->next=NULL;
@@ -215,10 +203,8 @@ int add_user(Group *group, const char *user_name) {
      * pointers
      */
     } else {
-        free(new_user->name);
-        new_user->name = NULL;
-        free(new_user);
-        new_user = NULL;
+        free_dp(new_user->name);
+        free_dp(new_user);
         return -1;
     }
 }
@@ -245,8 +231,8 @@ int remove_user(Group *group, const char *user_name) {
     if (prev_user != NULL) {
         if (strcmp(prev_user->name, user_name) == 0) {
             group->users = prev_user->next;
-            free(prev_user->name);
-            free(prev_user);
+            free_dp(prev_user->name);
+            free_dp(prev_user);
             return 0;
 
         /*      2) If it is a head node, we reset the head to the next user and free
@@ -259,10 +245,8 @@ int remove_user(Group *group, const char *user_name) {
             /* Free space for the user name and the user, also points the user to
              * NULL to avoid dangling pointers.
              */
-            free(temp->name);
-            temp->name = NULL;
-            free(temp);
-            temp = NULL;
+            free_dp(temp->name);
+            free_dp(temp);
         }
 
         // Return 0 if we the deletion is successful.
@@ -363,7 +347,7 @@ int under_paid(Group *group) {
  */
 User *find_prev_user(Group *group, const char *user_name) {
     /* Initializes and delcares a pointer to the first user in the list in order
-     * to find th target user.
+     * to find the target user.
      */
     User *curr = group->users;
 
@@ -413,28 +397,51 @@ void push_xct(Group *group, Xct *new_xct) {
  */
 void sort_user(Group *group, User *prev_user, const char *user_name) {
     if (strcmp(prev_user->name, user_name) == 0) {
-        group->users = prev_user->next;
         User *curr = group->users;
-        while (curr != NULL) {
-            if (curr->balance > prev_user->balance) {
-
-            } else if (curr->next == NULL) {
-
-            } else if (curr->next->balance > prev_user->balance) {
-
+        if (curr->next != NULL) {
+            group->users = prev_user->next;
+            while (curr != NULL) {
+                if (curr->balance > prev_user->balance) {
+                    User *tmp = group->users;
+                    group->users = prev_user;
+                    group->users->next = tmp;
+                    return;
+                } else if (curr->next == NULL) {
+                    prev_user->next = NULL;
+                    curr->next = prev_user;
+                    return;
+                } else if (curr->next->balance > prev_user->balance) {
+                    prev_user->next = curr->next;
+                    curr->next = prev_user;
+                    return;
+                }
+                curr = curr->next;
             }
         }
     } else {
-        User *tmp = prev_user->next;
-        prev_user->next = prev_user->next->next;
+        User *usr = prev_user->next;
         User *curr = group->users;
-        while (curr->next->balance > tmp->balance) {
-            curr = curr->next;
+        if (curr->next != NULL) {
+            prev_user->next = prev_user->next->next;
+            while (curr != NULL) {
+                if (curr->balance > usr->balance) {
+                    User *tmp = group->users;
+                    group->users = usr;
+                    group->users->next = tmp;
+                    return;
+                } else if (curr->next == NULL) {
+                    usr->next = NULL;
+                    curr->next = usr;
+                    return;
+                } else if (curr->next->balance > usr->balance) {
+                    usr->next = curr->next;
+                    curr->next = usr;
+                    return;
+                }
+                curr = curr->next;
+            }
         }
-        tmp->next = curr->next;
-        curr->next = tmp;
     }
-    
 }
 
 /* Add the transaction represented by user_name and amount to the appropriate
@@ -446,25 +453,22 @@ void sort_user(Group *group, User *prev_user, const char *user_name) {
 int add_xct(Group *group, const char *user_name, double amount) {
     Xct *new_xct = (Xct*) malloc (sizeof(Xct));
     if (new_xct == NULL) {
-        perror("ERROR: Malloc failed\n");
-        exit(256);
+        print_exit("ERROR: Malloc failed", 256);
     } else {
         int size_to_malloc = (strlen(user_name)+1)*sizeof(char);
         new_xct->name = (char*) malloc (size_to_malloc);
         if (new_xct->name == NULL) {
-            perror("ERROR: Malloc failed\n");
-            exit(256);
+            print_exit("ERROR: Malloc failed", 256);
         }
         strncpy(new_xct->name, user_name, size_to_malloc);
+        new_xct->name[size_to_malloc] = '\0';
         new_xct->amount = amount;
         new_xct->next = NULL;
     }
     User *prev_user = find_prev_user(group, user_name);
     if (prev_user == NULL) {
-        free(new_xct->name);
-        new_xct->name = NULL;
-        free(new_xct);
-        new_xct = NULL;
+        free_dp(new_xct->name);
+        free_dp(new_xct);
         return -1;
     } else if (strcmp(prev_user->name, user_name) == 0) {
         push_xct(group, new_xct);
