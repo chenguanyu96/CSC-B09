@@ -1,0 +1,159 @@
+#!/bin/sh
+
+# Stores the return value to keep track if there were any errors in the script during runtime
+return_value=0
+
+if [ $# -eq 0 ]
+then
+    echo 'No parameters are given, cannot process.' >&2
+    return_value=129
+    num_of_col=0
+# To store the number of columns the user wants to see in the HTML
+elif [ $# -gt 0 ] 
+then
+    num_of_col=`expr $1 - 1`
+    if [ $? -ne 0 ]
+    then
+        echo 'FATAL ERROR! First argument should be an integer (max number of columns)' >&2
+        return_value=128
+    fi
+else
+    num_of_col=0
+fi
+# Keep track of the number of columns that have been made
+counter=0
+
+# Keep track if the script have an error while running
+error_flag=false
+
+# Keep track whether end row tag is needed whenever one is opened
+end_row_flag=true
+
+# Echoes a message to the screen, sets the error flag to true, and changes the return value of the script when an error occurs during runtime.
+file_error() {
+    # Error message echoed to shell NOT HTML file
+    echo "$pic_path is not a JPEG file or $pic_path doesn't exist, cannot be processed" >&2    
+
+    # Error flag raised when current file to be added isn't of type JPEG
+    error_flag=true
+    return_value=127
+}
+
+# Write the base of the HTML into the file
+echo '<html>'
+echo '  <head>'
+echo '      <title>Pictures</title>'
+echo '  </head>' 
+echo '  <body>' 
+echo '      <h1>Pictures</h1>'
+echo '      <table>'
+if [ $num_of_col -eq -1 ]
+then
+    echo '      </table>'
+    echo '  </body>'
+    echo '</html>'
+    echo 'You entered 0 columns; HTML generated is a blank table.' >&2
+    exit 101
+fi
+
+# Tests if the parameters passed in is sufficient to run the script to create an HTML table
+if [ $# -gt 1 ]
+then
+    # Loops through the parameters passed in order to check file types and create the table
+    shift
+    for pic_path in "$@"
+    do
+        eval set -- $pic_path
+        # Checks the file type (JPEG), if it is JPEG, the table row <tr> will be started and the picture will be added to the HTML, if not an error message will 
+        if [ $counter -eq  0 ]
+        then
+            # Check if the file is a JPEG so that the HTML file won't add non-JPEG files
+            # -q: stop grep from echoeing messages out to shell
+            file "$pic_path" | grep -q JPEG
+
+            # If the file is a JPEG file, the script will write the HTML code that will insert the JPEG
+            if [ $? -eq 0 ]
+            then
+                # Sets the error flag to false if it has been set to true before
+                error_flag=false
+
+                # No end row tag currently written into the HTML
+                # If end row tag exists in the HTML, end_row_flag=true
+                end_row_flag=false
+                echo '          <tr>'
+                echo "              <td><img src=\"$pic_path\" height=100></td>"
+
+                # If the number of columns wanted is 1, ends the current row in order to start a new row
+                if [ $counter -eq $num_of_col ]
+                then
+                    echo '          </tr>'
+                    counter=-1
+
+                    # End row tag written into the HTML
+                    end_row_flag=true
+                fi
+            # If the file is not a JPEG, the script will echo an error and keep processing through the rest of the other files
+            else
+                file_error
+            fi
+        # Creates the second column of the table after the file has been checked to be the correct type
+        elif [ $counter -lt $num_of_col ]
+        then
+            # Check if the file is a JPEG file
+            # -q: stops grep from echoeing messages out to shell
+            file "$pic_path" | grep -q JPEG
+
+            # If the file is a JPEG file it will add the the current JPEG file to the HTML including the HTML code
+            if [ $? -eq 0 ]
+            then
+                error_flag=false
+                echo "              <td><img src=\"$pic_path\" height=100></td>"
+
+             # If the file is not a JPEG file, it will echo an error to the screen and continue processing the rest of the file
+            else
+                file_error
+            fi
+        # Initialize the last column of the table after checking the file type is correct
+        elif [ $counter -eq $num_of_col ]
+        then
+
+            # Check if the file is a JPEG file
+            # -q: stops grep from echoeing messages out to shell
+            file "$pic_path" | grep -q JPEG
+
+            # If the file is a JPEG file, it will write the last picture and HTML code and close off the row
+            if [ $? -eq 0 ]
+            then
+                error_flag=false
+                echo "              <td><img src=\"$pic_path\" height=100></td>"
+                echo '          </tr>'
+                end_row_flag=true
+                counter=-1
+
+            # If the file is not a JPEG file, it will echo an error message to the screen and continue processing the extra parameter
+            else
+                file_error
+            fi
+        fi
+        # If an error occured in the script, the counter will not increase so that there are no rows/columns are extra or missing
+        if [ $error_flag = false ]
+        then
+            counter=`expr $counter + 1`
+        fi
+    done
+    # Adds the last end tag for table row if it is not added during the writing process to code the picture
+    if [ $counter -le $num_of_col -a $end_row_flag = false ]
+    then
+        echo '          </tr>'
+    fi
+fi
+# Writes the footer of the HTML
+echo '      </table>'
+echo '  </body>'
+echo '</html>'
+if [ $return_value -eq 0 ]
+then
+    echo 'generating HTML ................ [ok]' >&2
+fi
+
+exit $return_value

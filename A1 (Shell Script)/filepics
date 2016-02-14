@@ -1,0 +1,82 @@
+#!/bin/sh
+
+# Stores the return value of the script if an error occured while the script is running
+return_value=0
+
+export PATH=$PATH:/courses/webspace/cscb09w16/bin
+echo 'adding path to run exiftime .............. [ok]' >&2
+
+# The path that the user passed in to the directory where the photos will be sorted
+path=$1
+
+# Checks if no directory is given to process
+if [ $# -eq 0 ]
+then
+    echo 'No directory given' >&2
+    return_value=128
+    exit $return_value
+
+# Checks if the number of parameters given is more than 1
+elif [ $# -gt 1 ]
+then
+    echo 'Only 1 directory should be given to sort' >&2
+
+    # Set return value to 126 for this error
+    return_value=126
+    exit $return_value
+
+# Checks if the path that is given is valid
+elif [ ! -d $path ] 
+then
+    echo "No such file or directory found: $path" >&2
+    return_value=127
+    exit $return_value
+fi
+# Iterates through the images in the directory in order to get the date the image was generated
+for picture in "$path"/*
+do
+    file "$picture" | grep -vq directory
+    if [ $? -eq 0 ]
+    then
+        # Gets the date & time of when the image was generated from the file
+        image_gen=$(exiftime -tg "$picture")
+        exiftime_status=$?
+        if [ $exiftime_status -ne 0 ]
+        then
+            
+            echo 'Image generated data does not exist, cannot process' >&2
+            return_value=101
+        fi
+        # Gets the year when the image was generated. In order to ensure formatting is correct for filenames:
+        #       FIRST CUT: Gets the year when the image was generated 
+        #       SECOND CUT: Removes the 1 leading whitespace
+        year=$(echo "$image_gen"| cut -d':' -f2 | cut -d' ' -f2)
+
+        # Gets the month from the data that exiftime returned
+        month=$(echo "$image_gen" | cut -d':' -f3)
+
+        # Retrieves the name of the picture file in the directory
+        pic_name=$(echo "$picture" | rev | cut -d'/' -f1 | rev)
+        
+        # Checks if the directory exists and makes the directory if it doesn't exist
+        mkdir -p "$path"/"$year"/"$month"
+        
+        
+        # If both the directory for the year and the month exists, moves the file to the directory 
+        if [ -d "$path"/"$year"/"$month" -a $exiftime_status -eq 0 ]
+	    then
+            mv -f "$picture" "$path"/"$year"/"$month"/"$pic_name"
+        fi
+    fi
+done
+
+if [ $return_value -eq 0 ]
+then
+    echo 'sort JPEG pictures ................. [success!]' >&2
+fi
+
+exit $return_value
+
+
+
+

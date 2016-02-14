@@ -1,0 +1,184 @@
+#!/bin/sh
+
+# Stores the return value if there were any errors in the script during runtime
+return_value=0
+
+# Checks if no parameters are given
+if [ $# -eq 0 ]
+then
+    echo 'No parameters are given, cannot process' >&2
+    return_value=129
+    num_of_col=0
+
+# Checks if the correct number of parameters are given
+elif [ $# -eq 2 ]
+then
+    # Number of columns each table should contain
+    num_of_col=`expr $1 - 1`
+    if [ $? -ne 0 ]
+    then
+        echo 'FATAL ERROR! First argument should be an integer (max number of columns)' >&2
+        return_value=128
+    fi
+
+# Checks if more than enough paramters are given
+elif [ $# -gt 2 ]
+then
+    echo 'You passed in more parameters than needed' >&2
+    return_value=123
+    exit $return_value
+
+# Handles all other cases
+else
+    echo 'Please enter valid parameters' >&2
+    return_value=101
+    num_of_col=0
+fi
+# Keeps track of the number of columns made in the table
+counter=0
+
+# Echoes a message to the screen, sets the error flag to true, and changes the return value of the script when an error occurs during runtime.
+file_error() {
+    echo "$picture_file is not a JPEG file, cannot be processed" >&2
+
+    # Sets the error flag to be true so that the counter doesn't get increased because no new column has been made
+    error_flag=true
+    return_value=127
+}
+
+# Write the starter of the HTML code into the file
+echo '<html>'
+echo '  <head>'
+echo '  </head>'
+echo '  <body>' 
+echo '      <h1>Picture</h1>'
+
+# Checks if the user entered 0 columns, if 0 columns are entered, none of the other parameters will be processed
+if [ $num_of_col -eq -1 ]
+then
+    echo '  </body>'
+    echo '</html>'
+    echo 'You have entered 0 columns, resulting HTML is an empty.' >&2
+    return_value=90
+    exit $return_value
+fi
+
+# Check if the number of parameters given is sufficient to run the script
+if [ $# -gt 1 ]
+then
+    # Iterate through the folders/files in the current directory in order to add all images to the HTML file and filter out any not useful files
+    for year_entry in "$2"/[0-9][0-9][0-9][0-9]
+    do
+        # Handles the case where the given directory is empty
+        if [ "$year_entry" = "$2/*" ]
+        then
+            echo '  </body>'
+            echo '</html>'
+            echo 'Directory is empty' >&2
+            
+            # Exit code 3 is given in this situation
+            exit 3
+        fi
+        # Test if the current file is a directory or another image file that has not been filed
+        file "$year_entry" | grep -q directory
+
+        # If it is a directory, get the name of the directory (year) and go into the directory to get the month
+        if [ $? -eq 0 ]
+        then
+            # Gets the year, writes the year into the HTML file and starts the table
+            year="$(echo $year_entry | rev | cut -d'/' -f1 | rev)"
+            echo "      <h2>$year</h2>"
+            echo '      <table>'
+            
+            # Iterates through the month and the pictures inside in order to get the path of the pictures to write them into the HTML file 
+            for month_entry in "$year_entry"/[0-9][0-9]
+            do
+                for picture_file in "$month_entry"/*
+                do
+                    # Gets the path to the picture that will be written into the HTML file 
+                    picture_path="$(echo $picture_file | rev | cut -d'/' -f1- | rev)"
+                    if [ $counter -eq 0 ]
+                    then
+                        # Checks if the file is of type JPEG, If the file is of type JPEG, it will write the filepath into the HTML, otherwise it will skip this file
+                        # and move on to the next file 
+                        file "$picture_file" | grep -q JPEG
+                        if [ $? -eq 0 ]
+                        then
+                            error_flag=false
+                            end_row_flag=false
+                            echo '          <tr>'
+                            echo "              <td><img src=\"$picture_path\" height=100></td>"
+
+                            # If the user only entered 1 column per row, the current row is closed after the first column is made
+                            if [ $counter -eq $num_of_col ]
+                            then
+                                echo '          </tr>'
+                                end_row_flag=true
+                                counter=-1
+                            fi
+                        else
+                            file_error
+                        fi
+                    elif [ $counter -lt $num_of_col ]
+                    then
+                        # Checks if the file is of type JPEG, If the file is of type JPEG, it will write the filepath into the HTML, otherwise it will skip this file
+                        # and move on to the next file 
+                        file "$picture_file" | grep -q JPEG
+                        if [ $? -eq 0 ]
+                        then
+                            error_flag=false
+                            echo "              <td><img src=\"$picture_path\" height=100></td>"
+                        else
+                            file_error                      
+                        fi
+                    elif [ $counter -eq $num_of_col ]
+                    then
+                        # Checks if the file is of type JPEG, If the file is of type JPEG, it will write the filepath into the HTML, otherwise it will skip this file
+                        # and move on to the next file 
+                        file "$picture_file" | grep -q JPEG
+                        if [ $? -eq 0 ]
+                        then
+                            error_flag=false
+                            echo "              <td><img src=\"$picture_path\" height=100></td>"
+                            echo '          </tr>'
+                            end_row_flag=true
+                            counter=-1
+                        else
+                            file_error  
+                        fi
+                    fi
+                    
+                    # Increases the counter if no error was encountered, if an error has been ecountered, the counter won't be added to avoid skipping a column
+                    if [ $error_flag = false ]
+                    then
+                        counter=`expr $counter + 1`
+                    fi
+                done
+            done
+            
+            # Closes the last row of the table and closes the table for the current year
+            if [ $counter -le $num_of_col -a $end_row_flag = false ]
+            then
+                echo '          </tr>' 
+            fi
+            echo '      </table>'
+
+        # Resets the counter to 0 to start the new table for the next year
+        counter=0
+        fi
+    done
+fi
+# Writes the footer of the HTML file
+echo '  </body>' 
+echo '</html>'
+
+if [ $return_value -eq 0 ]
+then
+    echo 'generating HTML ............... [ok]' >&2
+fi
+
+# Exit with the return value that is stored in the script
+exit $return_value
+
+
+
