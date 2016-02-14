@@ -3,11 +3,17 @@
 #include <string.h>
 #include "lists.h"
 
+/* Free the space occupied for the pointer that is passed in and sets the pointer
+ * to null in order to avoid dangling pointers.
+ */
 void free_dp(void *free_ptr) {
     free(free_ptr);
     free_ptr = NULL;
 }
 
+/* Prints the specified error message to standard output and exit with the
+ * specified error code.
+ */
 void print_exit(char *message, int exit_code) {
     perror(message);
     exit(exit_code);
@@ -392,54 +398,89 @@ void push_xct(Group *group, Xct *new_xct) {
     }
 }
 
+/* Move the specified user that might be not in the correct place in the list to
+ * to the correct place such that the user linked list is in ascending order in
+ * terms of each user's balance.
+ */
+void move_user(Group *group, User *curr, User *usr) {
+    /* Traverses through the list of users and finds the corrects spot for the
+     * specified user.
+     */
+    while (curr != NULL) {
+
+        /* If the specified user's balance is less than the user at the head of
+         * the list, the specified user is moved to become the new head of the
+         * list.
+         */
+        if (curr->balance > usr->balance) {
+            User *tmp = group->users;
+            group->users = usr;
+            group->users->next = tmp;
+            return;
+
+        /* If the specified user has a greater balance than any other user in the
+         * list, the specified user is appended to the list (moved to the end of
+         * the list).
+         */
+        } else if (curr->next == NULL) {
+            usr->next = NULL;
+            curr->next = usr;
+            return;
+
+        /* If we find a user in the list has a greater balance than the specified
+         * user, the specified user is moved before the user that has a greater
+         * balane so that we keep the user list in ascending order by the user's
+         * balance.
+         */
+        } else if (curr->next->balance > usr->balance) {
+            usr->next = curr->next;
+            curr->next = usr;
+            return;
+        }
+        curr = curr->next;
+    }
+}
+
 /* This sorts the user in acsending order by the balance. This is completed after
  * the user's balance is updated.
  */
 void sort_user(Group *group, User *prev_user, const char *user_name) {
+    /* Checks if the user returned is at the beginning of the list or at the
+     * end of the list.
+     *     1) If the user is at the beginning of the list
+     */
     if (strcmp(prev_user->name, user_name) == 0) {
+
+        /* Set a pointer at the beginning of the list so that we can traverse 
+         * through the list.
+         */
         User *curr = group->users;
+
+        /* If the list is not empty, we delete the user from its current place
+         * in the list and the user is moved to its correct place in the list
+         * such that the list is an ascending order according to each user's
+         * balance.
+         */
         if (curr->next != NULL) {
             group->users = prev_user->next;
-            while (curr != NULL) {
-                if (curr->balance > prev_user->balance) {
-                    User *tmp = group->users;
-                    group->users = prev_user;
-                    group->users->next = tmp;
-                    return;
-                } else if (curr->next == NULL) {
-                    prev_user->next = NULL;
-                    curr->next = prev_user;
-                    return;
-                } else if (curr->next->balance > prev_user->balance) {
-                    prev_user->next = curr->next;
-                    curr->next = prev_user;
-                    return;
-                }
-                curr = curr->next;
-            }
+            move_user(group, curr, prev_user);
         }
+    //     2) If the user is in the middle of the list or at the end of the list
     } else {
+
+        /* The user to be moved is stored in a variable and a pointer is initialized
+         * at the head of the list in order to traverse through it. 
+         */
         User *usr = prev_user->next;
         User *curr = group->users;
+
+        /* If the list is not empty, we remvoe the user from its current place in
+         * in the linked list, and the user is moved to its correct place so that
+         * the linked list is in ascending order by each user's balance. 
+         */
         if (curr->next != NULL) {
             prev_user->next = prev_user->next->next;
-            while (curr != NULL) {
-                if (curr->balance > usr->balance) {
-                    User *tmp = group->users;
-                    group->users = usr;
-                    group->users->next = tmp;
-                    return;
-                } else if (curr->next == NULL) {
-                    usr->next = NULL;
-                    curr->next = usr;
-                    return;
-                } else if (curr->next->balance > usr->balance) {
-                    usr->next = curr->next;
-                    curr->next = usr;
-                    return;
-                }
-                curr = curr->next;
-            }
+            move_user(group, curr, usr);
         }
     }
 }
@@ -451,12 +492,27 @@ void sort_user(Group *group, User *prev_user, const char *user_name) {
  * success, and -1 if the specified user does not exist.
  */
 int add_xct(Group *group, const char *user_name, double amount) {
+    /* Allocate space for the new xct that is to be added to the list of
+     * xcts.
+     */
     Xct *new_xct = (Xct*) malloc (sizeof(Xct));
+
+    /* Checks if malloc failed, if malloc failed, a error message is printed to
+     * standard output and exit code of 256.
+     */
     if (new_xct == NULL) {
         print_exit("ERROR: Malloc failed", 256);
+
+    /* If malloc didn't fail, the user name and the amount is assigned to the new
+     * xct and the next pointer is set to NULL temporarily.
+     */
     } else {
         int size_to_malloc = (strlen(user_name)+1)*sizeof(char);
         new_xct->name = (char*) malloc (size_to_malloc);
+
+        /* Checks if the current malloc failed, if it failed a message is printed
+         * to standard output and exit code of 256 is set.
+         */
         if (new_xct->name == NULL) {
             print_exit("ERROR: Malloc failed", 256);
         }
@@ -465,16 +521,33 @@ int add_xct(Group *group, const char *user_name, double amount) {
         new_xct->amount = amount;
         new_xct->next = NULL;
     }
+
+    /* Finds the previous user to the user that added a xct in order to change
+     * the user's balance and re-organize the list.
+     */
     User *prev_user = find_prev_user(group, user_name);
+
+    /* If no user was found with the same user name in the list of users, -1 is
+     * returned.
+     */
     if (prev_user == NULL) {
         free_dp(new_xct->name);
         free_dp(new_xct);
         return -1;
+
+    /* Checks if the user returned is the head of the list of users, if it is, 
+     * the head is changed so that the user can be moved to its correct location.
+     */
     } else if (strcmp(prev_user->name, user_name) == 0) {
         push_xct(group, new_xct);
         prev_user->balance += amount;
         sort_user(group, prev_user, user_name);
         return 0;
+
+    /* Checks if the user returned is in the middle of the list of users, the 
+     * user is remvoed from its current position and placed in the correct
+     * position in the users of list.
+     */
     } else {
         push_xct(group, new_xct);
         prev_user->next->balance += amount;
@@ -490,10 +563,26 @@ int add_xct(Group *group, const char *user_name, double amount) {
  * there are no transactions, this function will print nothing.
  */
 void recent_xct(Group *group, long nu_xct) {
+    /* Checks if the list of xcts is empty, if it is empty, nothing is printed
+     * or returned.
+     */
     if (group->xcts == NULL) {
         return;
+
+    /* If the list of xcts is not empty we can print out the specified number of
+     * recent xcts.
+     */
     } else {
+
+        /* Initializes a pointer to the head of the xct list in order to traverse
+         * through the list to print out recent xcts.
+         */
         Xct *curr = group->xcts;
+
+        /* Uses a for loop to count the number of xct(s) that is printed out. If
+         * there are not enough xcts, it will only print out the maximum number
+         * of xcts there are in the xct list.
+         */
         int i;
         for (i = 0; i < nu_xct; i++) {
             if (curr != NULL) {
