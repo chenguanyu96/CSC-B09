@@ -237,6 +237,7 @@ int remove_user(Group *group, const char *user_name) {
     if (prev_user != NULL) {
         if (strcmp(prev_user->name, user_name) == 0) {
             group->users = prev_user->next;
+            remove_xct(group, user_name);
             free_dp(prev_user->name);
             free_dp(prev_user);
             return 0;
@@ -247,6 +248,7 @@ int remove_user(Group *group, const char *user_name) {
         } else if (strcmp(prev_user->next->name, user_name) == 0) {
             User *temp = prev_user->next;
             prev_user->next = prev_user->next->next;
+            remove_xct(group, user_name);
 
             /* Free space for the user name and the user, also points the user to
              * NULL to avoid dangling pointers.
@@ -449,6 +451,7 @@ void sort_user(Group *group, User *prev_user, const char *user_name) {
      * end of the list.
      *     1) If the user is at the beginning of the list
      */
+    printf("%s\n", prev_user->next->name);
     if (strcmp(prev_user->name, user_name) == 0) {
 
         /* Set a pointer at the beginning of the list so that we can traverse 
@@ -463,7 +466,7 @@ void sort_user(Group *group, User *prev_user, const char *user_name) {
          */
         if (curr->next != NULL) {
             group->users = prev_user->next;
-            move_user(group, curr, prev_user);
+            move_user(group, group->users, prev_user);
         }
     //     2) If the user is in the middle of the list or at the end of the list
     } else {
@@ -471,7 +474,6 @@ void sort_user(Group *group, User *prev_user, const char *user_name) {
         /* The user to be moved is stored in a variable and a pointer is initialized
          * at the head of the list in order to traverse through it. 
          */
-        User *usr = prev_user->next;
         User *curr = group->users;
 
         /* If the list is not empty, we remvoe the user from its current place in
@@ -479,6 +481,7 @@ void sort_user(Group *group, User *prev_user, const char *user_name) {
          * the linked list is in ascending order by each user's balance. 
          */
         if (curr->next != NULL) {
+            User *usr = prev_user->next;
             prev_user->next = prev_user->next->next;
             move_user(group, curr, usr);
         }
@@ -601,5 +604,19 @@ void recent_xct(Group *group, long nu_xct) {
  * Remember to free memory no longer needed.
  */
 void remove_xct(Group *group, const char *user_name) {
-    //Xct *curr = group->xcts;
+    Xct *curr = group->xcts;
+    while (curr != NULL) {
+        if (strcmp(curr->name, user_name) == 0) {
+            Xct *tmp = curr;
+            group->xcts = curr->next;
+            free_dp(tmp->name);
+            free_dp(tmp);
+        } else if (strcmp(curr->next->name, user_name) == 0) {
+            Xct *tmp = curr->next;
+            curr->next = curr->next->next;
+            free_dp(tmp->name);
+            free_dp(tmp);
+        }
+        curr = curr->next;
+    }
 }
