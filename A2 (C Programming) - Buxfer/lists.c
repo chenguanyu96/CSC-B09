@@ -45,7 +45,7 @@ int add_group(Group **group_list_ptr, const char *group_name) {
      *        to NULL
      */
     } else {
-        int size_to_malloc = (strlen(group_name)+1)*sizeof(char);
+        int size_to_malloc = (strlen(group_name) + 1) * sizeof(char);
         new_group->name = (char*) malloc (size_to_malloc);
 
         /* Checks if malloc completed successfully, if it didn't complete 
@@ -111,6 +111,7 @@ void list_groups(Group *group_list) {
     // If group_list is not empty, prints all group names, 1 on each line.
     } else {
         Group *curr = group_list;
+        printf("GROUP\n-----\n");
         while (curr != NULL) {
             printf("%s\n", curr->name);
             curr = curr->next;
@@ -187,7 +188,7 @@ int add_user(Group *group, const char *user_name) {
          * a pointer to another linked list.
          */
         new_user->balance = 0.0;
-        new_user->next=NULL;
+        new_user->next = NULL;
     }
 
     // Returns the user if the user already exists in the group.
@@ -284,8 +285,9 @@ void list_users(Group *group) {
      */
     } else {
         User *curr = group->users;
+        printf("USER \t BALANCE \n----- \t -------\n");
         while (curr != NULL) {
-            printf("%s: %.2f\n", curr->name, curr->balance);
+            printf("%s \t %.2f\n", curr->name, curr->balance);
             curr = curr->next;
         }
     }
@@ -451,7 +453,6 @@ void sort_user(Group *group, User *prev_user, const char *user_name) {
      * end of the list.
      *     1) If the user is at the beginning of the list
      */
-    printf("%s\n", prev_user->next->name);
     if (strcmp(prev_user->name, user_name) == 0) {
 
         /* Set a pointer at the beginning of the list so that we can traverse 
@@ -604,13 +605,29 @@ void recent_xct(Group *group, long nu_xct) {
  * Remember to free memory no longer needed.
  */
 void remove_xct(Group *group, const char *user_name) {
+    /* Initialize a counter in order to traverse through the xct list to find
+     * all the xcts that have to deleted.
+     */
     Xct *curr = group->xcts;
+
+    /* Traverse through the xct list so that we can delete the required xct that
+     * matches the specified user_name.
+     */
     while (curr != NULL) {
+
+        /* Checks if the first xct in the list matches the username given, if
+         * it matches, the xct is deleted and the space in memory is freed.
+         */
         if (strcmp(curr->name, user_name) == 0) {
             Xct *tmp = curr;
             group->xcts = curr->next;
             free_dp(tmp->name);
             free_dp(tmp);
+
+        /* Checks if the next xct matches the given user_name, if it matches,
+         * the xct is deleted and any allocated memory is freed that did belong
+         * to the xct. 
+         */
         } else if (strcmp(curr->next->name, user_name) == 0) {
             Xct *tmp = curr->next;
             curr->next = curr->next->next;
