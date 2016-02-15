@@ -3,6 +3,8 @@
 #include <string.h>
 #include "lists.h"
 
+#define CURRENCY '$'
+
 /* Free the space occupied for the pointer that is passed in and sets the pointer
  * to null in order to avoid dangling pointers.
  */
@@ -244,16 +246,14 @@ int remove_user(Group *group, const char *user_name) {
             return 0;
 
         /*      2) If it is a head node, we reset the head to the next user and free
-         *         up space for the deleted node.
+         *         up space for the deleted node. Free space for the user name 
+         *         and the user, also points the user to NULL to avoid dangling 
+         *         pointers.
          */
         } else if (strcmp(prev_user->next->name, user_name) == 0) {
             User *temp = prev_user->next;
             prev_user->next = prev_user->next->next;
             remove_xct(group, user_name);
-
-            /* Free space for the user name and the user, also points the user to
-             * NULL to avoid dangling pointers.
-             */
             free_dp(temp->name);
             free_dp(temp);
         }
@@ -267,6 +267,31 @@ int remove_user(Group *group, const char *user_name) {
     } else {
         return -1;
     }
+}
+
+/* Finds the length of the longeset name and returns its length. This function
+ * is neede to format the output for list_users and list_xcts to a table-like
+ * form.
+ */
+int longest_name(Group *group) {
+    /* Initialize a pointer to the head of the user list so that we can iterate
+     * through the list to find the longest name. 
+     */
+    User *curr = group->users;
+
+    // Initializes an integer to store the length of the longest name.
+    int len_longest_name = 0;
+
+    /* Traverses through the list to find the longest name, get its length and
+     * store it in len_longest_name. 
+     */
+    while (curr != NULL) {
+        if (strlen(curr->name) > len_longest_name) {
+            len_longest_name = strlen(curr->name);
+        }
+        curr = curr->next;
+    }
+    return len_longest_name;
 }
 
 /* Print to standard output the names of all the users in group, one
@@ -285,9 +310,10 @@ void list_users(Group *group) {
      */
     } else {
         User *curr = group->users;
-        printf("USER \t BALANCE \n----- \t -------\n");
+        int width = longest_name(group);
+        printf("%-*s \t BALANCE \n%-*s \t -------\n", width, "USER", width, "-----");
         while (curr != NULL) {
-            printf("%s \t %.2f\n", curr->name, curr->balance);
+            printf("%-*s \t %c%.2f\n", width, curr->name, CURRENCY, curr->balance);
             curr = curr->next;
         }
     }
@@ -307,7 +333,7 @@ int user_balance(Group *group, const char *user_name) {
      */
     while (curr != NULL) {
         if (strcmp(curr->name, user_name) == 0) {
-            printf("%.2f\n", curr->balance);
+            printf("%c%.2f\n", CURRENCY, curr->balance);
             return 0;
         }
     }
@@ -331,6 +357,7 @@ int under_paid(Group *group) {
      * returned if it is completed successfully.
      */
     } else {
+        printf("USERS\n-----\n");
         printf("%s\n", group->users->name);
         User *curr = group->users->next;
 
@@ -582,6 +609,13 @@ void recent_xct(Group *group, long nu_xct) {
          * through the list to print out recent xcts.
          */
         Xct *curr = group->xcts;
+        int width;
+        if (longest_name(group) > strlen("NAME UNDER XCT")) {
+            width = longest_name(group);
+        } else {
+            width = (int)strlen("NAME UNDER XCT");
+        }
+        printf("%-*s \t AMOUNT\n%-*s \t ------\n", width, "NAME UNDER XCT", width, "--------------");
 
         /* Uses a for loop to count the number of xct(s) that is printed out. If
          * there are not enough xcts, it will only print out the maximum number
@@ -590,7 +624,7 @@ void recent_xct(Group *group, long nu_xct) {
         int i;
         for (i = 0; i < nu_xct; i++) {
             if (curr != NULL) {
-                printf("%s: %.2f\n", curr->name, curr->amount);
+                printf("%-*s \t %c%.2f\n", width, curr->name, CURRENCY, curr->amount);
             } else {
                 return;
             }
