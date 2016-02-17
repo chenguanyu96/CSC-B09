@@ -331,9 +331,10 @@ int user_balance(Group *group, const char *user_name) {
     /* Traverses through the linked list to find the specified user and get the
      * balance and prints it to standard output.
      */
+    printf("BALANCE\n-------\n");
     while (curr != NULL) {
         if (strcmp(curr->name, user_name) == 0) {
-            printf("%c%.2f\n", CURRENCY, curr->balance);
+            printf("%c%.2f (%s)\n", CURRENCY, curr->balance, user_name);
             return 0;
         }
     }
@@ -639,30 +640,15 @@ void recent_xct(Group *group, long nu_xct) {
  * Remember to free memory no longer needed.
  */
 void remove_xct(Group *group, const char *user_name) {
-    /* Initialize a counter in order to traverse through the xct list to find
-     * all the xcts that have to deleted.
-     */
     Xct *curr = group->xcts;
-
-    /* Traverse through the xct list so that we can delete the required xct that
-     * matches the specified user_name.
-     */
-    while (curr != NULL) {
-
-        /* Checks if the first xct in the list matches the username given, if
-         * it matches, the xct is deleted and the space in memory is freed.
-         */
-        if (strcmp(curr->name, user_name) == 0) {
-            Xct *tmp = curr;
-            group->xcts = curr->next;
-            free_dp(tmp->name);
-            free_dp(tmp);
-
-        /* Checks if the next xct matches the given user_name, if it matches,
-         * the xct is deleted and any allocated memory is freed that did belong
-         * to the xct. 
-         */
-        } else if (strcmp(curr->next->name, user_name) == 0) {
+    if (strcmp(curr->name, user_name) == 0) {
+        Xct *tmp = curr;
+        group->xcts = curr->next;
+        free_dp(tmp->name);
+        free_dp(tmp);
+    }
+    while (curr != NULL && curr->next != NULL) {
+        if (strcmp(curr->next->name, user_name) == 0) {
             Xct *tmp = curr->next;
             curr->next = curr->next->next;
             free_dp(tmp->name);
