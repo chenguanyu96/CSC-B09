@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lists.h"
-
+6
 #define CURRENCY '$'
 
 /* Free the space occupied for the pointer that is passed in and sets the pointer
@@ -640,13 +640,26 @@ void recent_xct(Group *group, long nu_xct) {
  * Remember to free memory no longer needed.
  */
 void remove_xct(Group *group, const char *user_name) {
+    /* Initializes a pointer to the first node of the xct list in order to traverse
+     * through the list to find the list to find the correct xct to be deleted.
+     */
     Xct *curr = group->xcts;
+
+    /* Checks if the head of the xct list matches the user name that should be
+     * deleted from xcts. After deletion, it frees memory that is no longer needed
+     * by the pointer and points to NULL to avoid dangling pointers.
+     */
     if (strcmp(curr->name, user_name) == 0) {
         Xct *tmp = curr;
         group->xcts = curr->next;
         free_dp(tmp->name);
         free_dp(tmp);
     }
+
+    /* Traverses through the rest of the xct list to find other xct nodes to 
+     * delete if any. The xct node is deleted and then the memory is freed and
+     * the pointer is pointed to NULL to avoid dangling pointer. 
+     */
     while (curr != NULL && curr->next != NULL) {
         if (strcmp(curr->next->name, user_name) == 0) {
             Xct *tmp = curr->next;
