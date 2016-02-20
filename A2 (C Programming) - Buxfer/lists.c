@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lists.h"
-6
+
 #define CURRENCY '$'
 
 /* Free the space occupied for the pointer that is passed in and sets the pointer
