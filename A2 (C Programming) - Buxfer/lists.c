@@ -334,9 +334,10 @@ int user_balance(Group *group, const char *user_name) {
     printf("BALANCE\n-------\n");
     while (curr != NULL) {
         if (strcmp(curr->name, user_name) == 0) {
-            printf("%c%.2f (%s)\n", CURRENCY, curr->balance, user_name);
+            printf("%c%.2f (%s)\n", CURRENCY, curr->balance, curr->name);
             return 0;
         }
+        curr = curr->next;
     }
 
     // The specified user was not found in the linked list, as a result -1 is returned.
@@ -663,10 +664,31 @@ void remove_xct(Group *group, const char *user_name) {
     while (curr != NULL && curr->next != NULL) {
         if (strcmp(curr->next->name, user_name) == 0) {
             Xct *tmp = curr->next;
-            curr->next = curr->next->next;
+
+            /* Checks if next is NULL, if it is NULL, it means that the end of
+             * of the list have been reached and the last xct should be deleted.
+             */
+            if (tmp->next == NULL) {
+                curr->next = NULL;
+
+            /* If the next is not NULL, current next pointer is set to the xct
+             * after tmp.
+             */
+            } else {
+                curr->next = curr->next->next;
+            }
             free_dp(tmp->name);
             free_dp(tmp);
         }
-        curr = curr->next;
+
+        /* Checks if next xct after current is NULL, if the current is NULL we
+         * can check for the name of the xct.
+         */
+        if (curr->next != NULL) {
+            if (strcmp(curr->next->name, user_name) != 0) {
+                curr = curr->next;
+            }
+        }
+
     }
 }
