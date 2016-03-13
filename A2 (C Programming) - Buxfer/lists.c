@@ -21,6 +21,11 @@ void print_exit(char *message, int exit_code) {
     exit(exit_code);
 }
 
+void free_user_xct(void *in_ptr, void *main_ptr) {
+    free_dp(in_ptr);
+    free_dp(main_ptr);
+}
+
 /* Add a group with name group_name to the group_list referred to by
  * group_list_ptr. The groups are ordered by the time that the group was
  * added to the list with new groups added to the end of the list.
@@ -323,25 +328,18 @@ void list_users(Group *group) {
  * on success, or -1 if the user with the given name is not in the group.
  */
 int user_balance(Group *group, const char *user_name) {
-    /* Initializes a pointer to the first user to traverse through the linked list
-     * in order to get the balance of the specified user
-     */
-    User *curr = group->users;
-
-    /* Traverses through the linked list to find the specified user and get the
-     * balance and prints it to standard output.
-     */
-    printf("BALANCE\n-------\n");
-    while (curr != NULL) {
-        if (strcmp(curr->name, user_name) == 0) {
-            printf("%c%.2f (%s)\n", CURRENCY, curr->balance, curr->name);
-            return 0;
-        }
-        curr = curr->next;
+    User *prev_user = find_prev_user(group, user_name);
+    if (prev_user == NULL) {
+        return -1;
+    } else if (strcmp(prev_user->name, user_name) == 0) {
+        printf("BALANCE\n-------\n");
+        printf("%c%.2f (%s)\n", CURRENCY, prev_user->balance, prev_user->name);
+        return 0;
+    } else {
+        printf("BALANCE\n-------\n");
+        printf("%c%.2f (%s)\n", CURRENCY, prev_user->next->balance, prev_user->next->name);
+        return 0;
     }
-
-    // The specified user was not found in the linked list, as a result -1 is returned.
-    return -1;
 }
 
 /* Print to standard output the name of the user who has paid the least
@@ -650,45 +648,55 @@ void remove_xct(Group *group, const char *user_name) {
      * deleted from xcts. After deletion, it frees memory that is no longer needed
      * by the pointer and points to NULL to avoid dangling pointers.
      */
-    if (strcmp(curr->name, user_name) == 0) {
+    while (strcmp(curr->name, user_name) == 0) {
         Xct *tmp = curr;
-        group->xcts = curr->next;
-        free_dp(tmp->name);
-        free_dp(tmp);
+        if (curr->next == NULL) {
+            group->xcts = NULL;
+            curr = group->xcts;
+            free_dp(tmp->name);
+            free_dp(tmp);
+            return;
+        } else {
+            group->xcts = curr->next;
+            curr = group->xcts;
+            free_dp(tmp->name);
+            free_dp(tmp);
+        }
     }
 
     /* Traverses through the rest of the xct list to find other xct nodes to 
      * delete if any. The xct node is deleted and then the memory is freed and
      * the pointer is pointed to NULL to avoid dangling pointer. 
      */
-    while (curr != NULL && curr->next != NULL) {
-        if (strcmp(curr->next->name, user_name) == 0) {
-            Xct *tmp = curr->next;
+    if (curr != NULL) {
+        while (curr != NULL && curr->next != NULL) {
+            if (strcmp(curr->next->name, user_name) == 0) {
+                Xct *tmp = curr->next;
 
-            /* Checks if next is NULL, if it is NULL, it means that the end of
-             * of the list have been reached and the last xct should be deleted.
-             */
-            if (tmp->next == NULL) {
-                curr->next = NULL;
+                /* Checks if next is NULL, if it is NULL, it means that the end of
+                 * of the list have been reached and the last xct should be deleted.
+                 */
+                if (tmp->next == NULL) {
+                    curr->next = NULL;
 
-            /* If the next is not NULL, current next pointer is set to the xct
-             * after tmp.
-             */
-            } else {
-                curr->next = curr->next->next;
+                    /* If the next is not NULL, current next pointer is set to the xct
+                     * after tmp.
+                     */
+                } else {
+                    curr->next = curr->next->next;
+                }
+                free_dp(tmp->name);
+                free_dp(tmp);
             }
-            free_dp(tmp->name);
-            free_dp(tmp);
-        }
 
-        /* Checks if next xct after current is NULL, if the current is NULL we
-         * can check for the name of the xct.
-         */
-        if (curr->next != NULL) {
-            if (strcmp(curr->next->name, user_name) != 0) {
-                curr = curr->next;
+            /* Checks if next xct after current is NULL, if the current is NULL we
+             * can check for the name of the xct.
+             */
+            if (curr->next != NULL) {
+                if (strcmp(curr->next->name, user_name) != 0) {
+                    curr = curr->next;
+                }
             }
         }
-
     }
 }
